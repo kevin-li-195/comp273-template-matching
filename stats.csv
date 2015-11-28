@@ -1,0 +1,7 @@
+# StudentID, Case,        InstCnt, MemAccess, Misses, MicroSeconds
+260000000,   NaiveFA,     0,       0,         0,      0
+260000000,   Naive2Way,   0,       0,         0,      0
+260000000,   NaiveDirect, 0,       0,         0,      0
+260000000,   FastFA,      0,       0,         0,      0
+260000000,   Fast2Way,    0,       0,         0,      0
+260000000,   FastDirect,  0,       0,         0,      0
