@@ -8,8 +8,8 @@ templateBuffer: .space 0x400	# space for 8x8 template
 imageFileName:    .asciiz "pxlcon512x256cropgs.raw"  # filename of image to load 
 templateFileName: .asciiz "template8x8gs.raw"	     # filename of template to load
 # struct bufferInfo { int *buffer, int width, int height, char* filename }
-imageBufferInfo:    .word displayBuffer  512 256  imageFileName
-errorBufferInfo:    .word errorBuffer    512 256  0
+imageBufferInfo:    .word displayBuffer  512 128  imageFileName
+errorBufferInfo:    .word errorBuffer    512 128  0
 templateBufferInfo: .word templateBuffer 8   8    templateFileName
 
 .text
@@ -46,8 +46,8 @@ matchTemplate:
 		#mflo $a1 # return the total pixel width to a1
 		#mult $a2, $t0 # multiply to get height words.
 		#mflo $a2 # return the total pixel height to a2
-		addi $a1, $a1, -7 # subtract 7 from width to use for slt later 
-		addi $a2, $a2, -7 # subtract 7 from height to use for slt later
+		subi $a1, $a1, 7 # subtract 7 from width to use for slt later 
+		subi $a2, $a2, 7 # subtract 7 from height to use for slt later
 		add $t1, $0, $0 # initialize mutable height at zero
 mLoopH:		slt $t0, $t1, $a1 # check if height is done looping
 		beqz $t0, heightEnd # if it is done, then end outermost loop
@@ -76,28 +76,24 @@ tLoopW:		slti $t0, $t4, 8 # see if finished looping over width of the template
 		addi $t0, $a2, 7 # get the proper full width of the image
 		mult $t1, $t0 # multiply full width by current height of image
 		mflo $t7 # get the product (image height offset)
-#		div $t7, $t0 # divide by four because height was multiplied by 4
-#		mflo $t7 # get quotient, which is image width offset
 		add $t7, $t2, $t7 # add current image width offset to get the base pixel offset/4
-		mult $t7, $a0 # multiply the base pixel offset/4 by 4 to get the number of words offset for the image
-		mflo $t7 # store the product in t7
+		#mult $t7, $a0 # multiply the base pixel offset/4 by 4 to get the number of words offset for the image
+		#mflo $t7 # store the product in t7
 		# second: add template offset to base pixel offset
 		mult $t3, $t0 # multiply total width (512) by current height of template
 		mflo $t8 # get the product, which is the template height offset
 		add $t8, $t8, $t4 # add template width offset
-		mult $t8, $a0 # multiply by four to get word offset
-		mflo $t8 # store product in t8
-		add $t9, $t8, $0 # add to t9 to use later (this is template height and width offset) 
+		#mult $t8, $a0 # multiply by four to get word offset
+		#mflo $t8 # store product in t8
+		#add $t9, $t8, $0 # add to t9 to use later (this is template height and width offset) 
 		add $t7, $t8, $t7 # add template height and width offset to base offset
+		mult $a0, $t7 # mult by four. image offset including template offset.
+		mflo $t7 # store image offset including template offset in t7
+		
 		# $t7 now contains the proper image offset that we can use to compare with the template!
 		# now we need to get the address of the pixel because we can't use registers as offsets
-		add $t8, $t7, $t6 # add errorBuffer address to $t7 to get address of error buffer pixel
 		add $t7, $t7, $a3 # add displayBuffer address to $t7 to get address of image pixel
 #		# now we compare and do error analysis between the template pixel and the image pixel
-		
-		
-		# THIS IS WHERE I LEFT OFF. COMTINUE FROM HERE.
-		
 		
 		# t7 has displayBuffer address of image pixel
 		# t8 has errorBuffer address of error memory storage
@@ -105,16 +101,24 @@ tLoopW:		slti $t0, $t4, 8 # see if finished looping over width of the template
 		# t9 has template height and width offset
 		# t3 has current template height (0..7)
 		# t4 has current template width (0..7)
-		add $t9, $t9, $t5 # add template height and width offset to template base address
-		lw $t7, 0($t7) # load pixel value of image into t7
-		lw $t9, 0($t9) # load pixel value of template into t8
-		sra $t7, $t7, 16 # shift right by 16 bits to keep the top byte in the image pixel (since all we care about is intensity)
-		sra $t9, $t9, 16 # do the same shift with the template pixel
-		sub $t7, $t7, $t9 # subtract the intensities and store in t7
+		addi $a0, $0, 8 # need 8
+		mult $t3, $a0 # mult 8 by template height
+		mflo $t8 # get product. this is height offset of template
+		add $t8, $t8, $t4 # add template width offset
+		addi $a0, $0, 4 # need 4
+		mult $t8, $a0 # mult to get word offset
+		mflo $t8 # store product
+		add $t9, $t8, $t5 # add to get proper template address location in t9
+		lbu $t7, 1($t7) # load pixel value of image into t7
+		lbu $t9, 1($t9) # load pixel value of template into t8
+		#srl $t7, $t7, 16 # shift right by 16 bits to keep the top byte in the image pixel (since all we care about is intensity)
+		#srl $t9, $t9, 16 # do the same shift with the template pixel
+		subu $t7, $t7, $t9 # subtract the intensities and store in t7
 		# now we check for an absolute value in t7
-		slt $t0, $t7, $0 # check if it's less than zero
-		beqz $t0, nope # if it's greater than zero, skip to nope.
-		sub $t7, $0, $t7 # if it's less than zero, subtract zero by t7 and store in t7
+		#slt $t0, $t7, $0 # check if it's less than zero
+		#beqz $t0, nope # if it's greater than zero, skip to nope.
+		#sub $t7, $0, $t7 # if it's less than zero, subtract zero by t7 and store in t7
+		abs $t7, $t7 # TEST: absolute value
 nope:		addu $s0, $t7, $s0 # add absolute error to $s0. will save it to the error buffer after the template is done matching.
 		# DONE DOING THINGS.				
 		addi $t4, $t4, 1 # add one to height after done comparing this height
@@ -130,9 +134,9 @@ tHeightEnd:	addi $a0, $a2, 7 # get the proper full width of the image
 		mflo $t7 # get product and store in t7. This is proper word offset (x,y in SAD[x,y])
 		add $t7, $t6, $t7 # add errorbuffer address to base offset to get address at which to store error
 		sw $s0, 0($t7) # save SAD into errorBuffer address
-		addi $t2, $t2, 1 # add one to height of the image
+		addi $t2, $t2, 1 # add one to width of the image
 		j mLoopW # jump back to top of the loop to compare the new image height with the template
-widthEnd:	addi $t1, $t1, 1 # add one to width of the image
+widthEnd:	addi $t1, $t1, 1 # add one to height of the image
 		j mLoopH # jump back to the top of the image width loop in order to compare the next column of image
 heightEnd:	jr $ra # finish looping, all memory in error buffer now set to absolute differences
 	
