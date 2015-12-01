@@ -55,7 +55,7 @@ mLoopH:		slt $t0, $t1, $a1 # check if height is done looping
 mLoopW: 	slt $t0, $t2, $a2 # check if width is done looping
 		beqz $t0, widthEnd # if it is done, then end width loop
 		add $t3, $0, $0 #initialize template loop height at zero
-		add $s0, $0, $0 # initialize s0 register at zero (in preparation for saving the SAD[x,y]) 
+		add $v0, $0, $0 # initialize s0 register at zero (in preparation for saving the SAD[x,y]) 
 tLoopH:		slti $t0, $t3, 8 # see if finished looping over height of template
 		beqz $t0, tHeightEnd # if yes, jump to tWidthEnd and then go to mLoopH to next height
 		add $t4, $0, $0 #initialize template loop width at zero
@@ -119,7 +119,7 @@ tLoopW:		slti $t0, $t4, 8 # see if finished looping over width of the template
 		#beqz $t0, nope # if it's greater than zero, skip to nope.
 		#sub $t7, $0, $t7 # if it's less than zero, subtract zero by t7 and store in t7
 		abs $t7, $t7 # TEST: absolute value
-nope:		addu $s0, $t7, $s0 # add absolute error to $s0. will save it to the error buffer after the template is done matching.
+nope:		addu $v0, $t7, $v0 # add absolute error to $v0. will save it to the error buffer after the template is done matching.
 		# DONE DOING THINGS.				
 		addi $t4, $t4, 1 # add one to height after done comparing this height
 		j tLoopW # go back to top of the template width loop
@@ -133,7 +133,7 @@ tHeightEnd:	addi $a0, $a2, 7 # get the proper full width of the image
 		mult $a0, $t7 # multiply by 4 to get word offset
 		mflo $t7 # get product and store in t7. This is proper word offset (x,y in SAD[x,y])
 		add $t7, $t6, $t7 # add errorbuffer address to base offset to get address at which to store error
-		sw $s0, 0($t7) # save SAD into errorBuffer address
+		sw $v0, 0($t7) # save SAD into errorBuffer address
 		addi $t2, $t2, 1 # add one to width of the image
 		j mLoopW # jump back to top of the loop to compare the new image height with the template
 widthEnd:	addi $t1, $t1, 1 # add one to height of the image
