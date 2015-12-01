@@ -8,8 +8,8 @@ templateBuffer: .space 0x400	# space for 8x8 template
 imageFileName:    .asciiz "pxlcon512x256cropgs.raw"  # filename of image to load 
 templateFileName: .asciiz "template8x8gs.raw"	     # filename of template to load
 # struct bufferInfo { int *buffer, int width, int height, char* filename }
-imageBufferInfo:    .word displayBuffer  512 128  imageFileName
-errorBufferInfo:    .word errorBuffer    512 128  0
+imageBufferInfo:    .word displayBuffer  512 256  imageFileName
+errorBufferInfo:    .word errorBuffer    512 256  0
 templateBufferInfo: .word templateBuffer 8   8    templateFileName
 
 .text

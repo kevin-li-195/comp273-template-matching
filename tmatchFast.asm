@@ -36,10 +36,110 @@ main:	la $a0, imageBufferInfo
 # matchTemplate( bufferInfo imageBufferInfo, bufferInfo templateBufferInfo, bufferInfo errorBufferInfo )
 # NOTE: struct bufferInfo { int *buffer, int width, int height, char* filename }
 matchTemplate:	
-	
-	# TODO: write this function!
-	
-	jr $ra	
+		# $a0 = imageBufferInfo
+		# $a1 = templateBufferInfo
+		# $a2 = errorBufferInfo
+		addi $sp, $sp, -8 # make room on the stack
+		sw $s0, 0($sp) # save s0 on stack because we need it
+		sw $s1, 4($sp) # save s1 on stack because we need it
+		add $a3, $0, $0 # init template height counter
+templateH:	slti $t0, $a3, 8 # check if less than 8
+		beqz $t0, matchDone # if not less, then we're done!
+		addi $t9, $0, 32 # need 4*8
+		mult $t9, $a3 # multiply current number of rows by height offset.
+		mflo $t9 # get product, store in t9
+		lw $t0, 0($a1) # store base address of template in t0
+		add $t9, $t0, $t9 # add the height offset to get the address of the leftmost pixel of the current row (0)
+		lbu $t0, 1($t9) # load byte of intensity of leftmost pixel in current row
+		lbu $t1, 5($t9) # add 4 to get the next pixel (1)
+		lbu $t2, 9($t9) # add 4 to get the next pixel (2)
+		lbu $t3, 13($t9) # add 4 to get the next pixel (3)
+		lbu $t4, 17($t9) # add 4 to get the next pixel (4)		
+		lbu $t5, 21($t9) # add 4 to get the next pixel (5)
+		lbu $t6, 25($t9) # add 4 to get the next pixel (6)
+		lbu $t7, 29($t9) # add 4 to get the next pixel (7)
+		# we have loaded all the byte intensities of the pixels in the row in temp registers
+		# now we must handling looping over the image.
+		add $v0, $0, $0 # initialize image height counter
+imageH:		lw $t9, 8($a0) # load the total height of the image
+		sub $t9, $t9, 7 # subtract seven because we skip the last 7 rows
+		slt $t9, $v0, $t9 # see if we're done looping over height
+		beqz $t9, imgHeightDone # if done looping over height, then skip to "imgHeightDone"
+		add $v1, $0, $0 # initialize image width counter
+imageW:		lw $t9, 4($a0) # load the total width of the image
+		sub $t9, $t9, 7 # subtract seven because skipping the last 7 columns
+		slt $t9, $v1, $t9 # check if we're done looping over the image width
+		beqz $t9, imgWidthDone # if we're done looping over the width then we skip to "imgHeightDone"
+		# now we do cool things
+		# t0 - t7 contain the byte intensities of the current row of the template pixels that we're interested in
+		# a0 = imageBufferInfo
+		# a1 = templateBufferInfo
+		# a2 = errorBufferInfo
+		# v0 = current image height
+		# v1 = current image width
+		# now, at the curret v0,v1 pair, we store the SAD of the current row of image pixels - current row of template pxls
+		lw $t9, 4($a0) # load width of image buffer into t8
+		add $t8, $v0, $a3 # add the current template height (using t9 for comparison since it needs the template height too)
+		mult $t9, $t8 # multiply total width by current image height + template height (this is for imageBuffer address)
+		mflo $t8 # store product in t8
+		mult $t9, $v0 # multiply total width by current image height (this is for errorBuffer address)
+		mflo $t9 # store in t9
+		add $t8, $t8, $v1 # add current width to t8, obtaining offset/4 (this is for imagebuffer address)
+		add $t9, $t9, $v1 # add current width to t9, this is offset/4 (this is for errorBuffer addresS)
+		addi $s1, $0, 4 # get number four
+		mult $t8, $s1 # multiply to get word offset
+		mflo $t8 # store in t8
+		mult $t9, $s1 # multiply the original (for errorBuffer address) offset by 4
+		mflo $t9 # store in t9
+		lw $s0, 0($a2) # get address of errorBuffer
+		add $s0, $s0, $t9 # add total offset to address of errorbuffer. This is the address to which we save SAD
+		lw $s1, 0($s0) # load current SAD into s1
+		lw $t9, 0($a0) # get address of imagebuffer
+		add $t8, $t8, $t9 # add total offset to address of imagebuffer. this is the base address from which we compare the row of pxls!
+		#now we do the unrolling, comparison, and adding SAD to s1 (current SAD)
+		lbu $t9, 1($t8) # load byte of intensity from image (0)
+		sub $t9, $t9, $t0 # subtract to get difference from template row[0]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 5($t8) # load byte of intensity from image (1)
+		sub $t9, $t9, $t1 # subtract to get difference from template row[1]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 9($t8) # load byte of intensity from image (2)
+		sub $t9, $t9, $t2 # subtract to get difference from template row[2]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 13($t8) # load byte of intensity from image (3)
+		sub $t9, $t9, $t3 # subtract to get difference from template row[3]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 17($t8) # load byte of intensity from image (4)
+		sub $t9, $t9, $t4 # subtract to get difference from template row[4]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 21($t8) # load byte of intensity from image (5)
+		sub $t9, $t9, $t5 # subtract to get difference from template row[5]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 25($t8) # load byte of intensity from image (6)
+		sub $t9, $t9, $t6 # subtract to get difference from template row[6]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		lbu $t9, 29($t8) # load byte of intensity from image (7)
+		sub $t9, $t9, $t7 # subtract to get difference from template row[7]
+		abs $t9, $t9 # get absolute value of difference
+		add $s1, $s1, $t9 # add abs(SAD)
+		sw $s1, 0($s0) # save s1, the new SAD, into the location at s0
+		addi $v1, $v1, 1 # increment image width counter
+		j imageW
+imgWidthDone: 	addi $v0, $v0, 1 # increment img height counter
+		j imageH # jump back to iterate on the next image height		
+imgHeightDone:	addi $a3, $a3, 1 # increment template height counter
+		j templateH # jump back to top of template height loop now that we have a new template height
+matchDone:	lw $s0, 0($sp) # return s0
+		lw $s1, 4($sp) # return s1
+		add $sp, $sp, 8 # return sp back to original position
+		jr $ra	
 	
 	
 	
