@@ -1,6 +1,6 @@
-# LAST NAME
-# First name
-# Student number
+# LI
+# Kevin
+# 260565522
 .data
 displayBuffer:  .space 0x80000  # space for 512x256 bitmap display 
 errorBuffer:    .space 0x80000  # space to store match function
